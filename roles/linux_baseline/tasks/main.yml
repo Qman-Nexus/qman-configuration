@@ -8,11 +8,22 @@
       - qman_environment in ["production", "nonproduction"]
     fail_msg: "Unsupported operating system or environment."
 
+- name: Verify authorized live deployment
+  ansible.builtin.assert:
+    that:
+      - inventory_hostname == "qman-02"
+      - qman_environment == "nonproduction"
+      - ansible_facts['hostname'] == "qman-nonprod-01"
+      - ansible_facts['distribution_version'].split('.')[:2] == ['26', '04']
+      - (qman_baseline_apply | default(false)) is sameas true
+    fail_msg: "Live baseline deployment is not authorized."
+  when: not ansible_check_mode
+
+- name: Verify time synchronization
+  ansible.builtin.import_tasks: time.yml
+
 - name: Configure baseline packages
   ansible.builtin.import_tasks: packages.yml
 
 - name: Configure platform identity
   ansible.builtin.import_tasks: identity.yml
-
-- name: Verify time synchronization
-  ansible.builtin.import_tasks: time.yml

@@ -1,0 +1,28 @@
+---
+- name: Deploy Qman Linux security baseline
+  hosts: nonproduction
+  gather_facts: false
+  become: false
+  any_errors_fatal: true
+  serial: 1
+
+  pre_tasks:
+    - name: Verify deployment authorization
+      ansible.builtin.assert:
+        that:
+          - inventory_hostname == "qman-02"
+          - qman_environment == "nonproduction"
+          - not ansible_check_mode
+          - (qman_baseline_apply | default(false)) is sameas true
+        fail_msg: "Deployment outside the approved scope is prohibited."
+
+    - name: Gather system facts
+      ansible.builtin.setup:
+
+  roles:
+    - linux_baseline
+
+  post_tasks:
+    - name: Display deployment result
+      ansible.builtin.debug:
+        msg: "Qman Linux baseline deployment completed."

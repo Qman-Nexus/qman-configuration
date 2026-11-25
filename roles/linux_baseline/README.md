@@ -67,3 +67,34 @@ These capabilities are implemented separately.
 
 Initial baseline implementation.
 Live application and idempotency verification pending.
+
+## BLD-005 — Controlled Deployment
+
+Live deployment is restricted to the approved
+non-production server.
+
+### Safety Requirements
+
+- Inventory alias: qman-02
+- Environment: nonproduction
+- Operating system: Ubuntu 26.04 LTS
+- Hostname: qman-nonprod-01
+- Explicit deployment authorization required.
+- Time synchronization verified before changes.
+
+### Deployment Lifecycle
+
+1. Pass repository CI checks.
+2. Merge the approved pull request.
+3. Verify the target inventory.
+4. Execute the baseline preview.
+5. Authorize live deployment.
+6. Verify the resulting configuration.
+7. Repeat deployment to verify idempotency.
+
+### Exclusions
+
+Production deployment remains prohibited.
+
+SSH, firewall, patch management, monitoring
+and backup configuration are managed separately.
