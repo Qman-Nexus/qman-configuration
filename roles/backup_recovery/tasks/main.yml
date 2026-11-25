@@ -1,0 +1,83 @@
+---
+- name: Verify approved backup preview scope
+  ansible.builtin.assert:
+    that:
+      - inventory_hostname == "qman-02"
+      - qman_environment == "nonproduction"
+      - ansible_check_mode
+      - not backup_recovery_enabled
+    fail_msg: "Backup configuration is restricted to preview mode."
+
+- name: Check Restic installation
+  ansible.builtin.command:
+    argv:
+      - dpkg-query
+      - -W
+      - restic
+  register: backup_recovery_package
+  check_mode: false
+  changed_when: false
+  failed_when: backup_recovery_package.rc not in [0, 1]
+
+- name: Report Restic package status
+  ansible.builtin.debug:
+    msg: >-
+      {{
+        backup_recovery_package.stdout
+        if backup_recovery_package.rc == 0
+        else "Restic package not installed"
+      }}
+
+- name: Check backup credential directory
+  ansible.builtin.stat:
+    path: "{{ backup_recovery_credential_directory }}"
+  become: true
+  register: backup_recovery_credentials
+
+- name: Report credential directory status
+  ansible.builtin.debug:
+    msg: >-
+      Credential directory exists:
+      {{ backup_recovery_credentials.stat.exists }}
+
+- name: Read available filesystem capacity
+  ansible.builtin.command:
+    argv:
+      - df
+      - -Ph
+      - /
+  register: backup_recovery_disk
+  check_mode: false
+  changed_when: false
+
+- name: Report filesystem capacity
+  ansible.builtin.debug:
+    var: backup_recovery_disk.stdout_lines
+
+- name: Read existing Qman backup timer
+  ansible.builtin.command:
+    argv:
+      - systemctl
+      - show
+      - "--property=Id,LoadState,ActiveState,UnitFileState"
+      - qman-backup.timer
+  register: backup_recovery_timer
+  check_mode: false
+  changed_when: false
+
+- name: Report backup timer status
+  ansible.builtin.debug:
+    var: backup_recovery_timer.stdout_lines
+
+- name: Display proposed backup policy
+  ansible.builtin.debug:
+    msg:
+      enabled: "{{ backup_recovery_enabled }}"
+      schedule: "{{ backup_recovery_schedule }}"
+      retention: "{{ backup_recovery_retention }}"
+      rpo_hours: "{{ backup_recovery_rpo_hours }}"
+      rto_hours: "{{ backup_recovery_rto_hours }}"
+
+- name: Report backup preview completion
+  ansible.builtin.debug:
+    msg: "Backup assessment completed. No backup or configuration changes performed."

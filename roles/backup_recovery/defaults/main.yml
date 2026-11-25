@@ -1,0 +1,22 @@
+---
+backup_recovery_enabled: false
+
+backup_recovery_schedule: daily
+
+backup_recovery_retention:
+  daily: 7
+  weekly: 4
+  monthly: 6
+
+backup_recovery_rpo_hours: 24
+backup_recovery_rto_hours: 4
+
+backup_recovery_paths: []
+
+backup_recovery_excludes:
+  - "*.tmp"
+  - "*.cache"
+  - "node_modules"
+  - "__pycache__"
+
+backup_recovery_credential_directory: /etc/qman/backup
