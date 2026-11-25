@@ -1,0 +1,22 @@
+---
+- name: Deploy Qman OpenSSH security baseline
+  hosts: nonproduction
+  gather_facts: false
+  become: false
+  any_errors_fatal: true
+  serial: 1
+
+  pre_tasks:
+    - name: Verify deployment authorization
+      ansible.builtin.assert:
+        that:
+          - inventory_hostname == "qman-02"
+          - qman_environment == "nonproduction"
+          - not ansible_check_mode
+          - (qman_ssh_apply | default(false)) is sameas true
+
+    - name: Gather system facts
+      ansible.builtin.setup:
+
+  roles:
+    - ssh_hardening

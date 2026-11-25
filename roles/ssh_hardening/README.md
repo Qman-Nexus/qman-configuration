@@ -53,3 +53,31 @@ verification and recovery testing remain pending.
 
 Provider firewall and host firewall management are
 implemented separately.
+
+## BLD-006B — Controlled SSH Deployment
+
+Live execution is restricted to QMAN-02.
+
+### Preconditions
+
+- Verified independent administrative access.
+- Provider recovery capabilities available.
+- Protected configuration backup.
+- Active timed rollback mechanism.
+- Explicit deployment authorization.
+
+### Validation
+
+- Validate existing OpenSSH configuration.
+- Deploy the managed configuration.
+- Validate the complete OpenSSH configuration.
+- Verify effective security settings.
+- Reload only when configuration changes.
+- Test independent administrative access.
+- Verify idempotency.
+
+Tailscale SSH and provider firewall policies
+remain outside the scope of this role.
+
+Cancel the rollback timer only after successful
+deployment and connectivity validation.
