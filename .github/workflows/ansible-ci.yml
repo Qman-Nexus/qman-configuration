@@ -1,0 +1,74 @@
+---
+name: Ansible CI
+
+"on":
+  pull_request:
+    branches:
+      - main
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ansible-ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  ansible:
+    name: Ansible checks
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Setup Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.13"
+
+      - name: Install Python dependencies
+        run: python -m pip install -r requirements-dev.txt
+
+      - name: Install Restic
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends restic
+
+      - name: Verify tool versions
+        run: |
+          python --version
+          ansible --version
+          ansible-lint --version
+          yamllint --version
+          restic version
+
+      - name: Run configuration CI checks
+        run: bash tests/run-ci.sh
+
+      - name: Publish verification summary
+        run: |
+          cat >> "$GITHUB_STEP_SUMMARY" <<'SUMMARY'
+          # Qman Configuration CI
+
+          | Control | Result |
+          |---|---|
+          | Prohibited files | PASS |
+          | YAML lint | PASS |
+          | Ansible lint | PASS |
+          | Playbook syntax | PASS |
+          | Local integration | PASS |
+          | Vault verification | PASS |
+          | Restic recovery | PASS |
+          | Dependency audit | PASS |
+
+          No remote infrastructure was modified.
+          No production credentials were used.
+          SUMMARY
