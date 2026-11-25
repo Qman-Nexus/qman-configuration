@@ -1,0 +1,51 @@
+---
+- name: Verify approved monitoring preview scope
+  ansible.builtin.assert:
+    that:
+      - inventory_hostname == "qman-02"
+      - qman_environment == "nonproduction"
+      - ansible_check_mode
+
+- name: Verify supported operating system
+  ansible.builtin.assert:
+    that:
+      - ansible_facts['distribution'] == "Ubuntu"
+      - ansible_facts['service_mgr'] == "systemd"
+
+- name: Assess current system health
+  ansible.builtin.import_tasks: assessment.yml
+
+- name: Check journald drop-in directory
+  ansible.builtin.stat:
+    path: /etc/systemd/journald.conf.d
+  register: monitoring_logging_dropin_directory
+
+- name: Preview journald configuration directory
+  ansible.builtin.file:
+    path: /etc/systemd/journald.conf.d
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+  become: true
+  check_mode: true
+
+- name: Preview Qman journal configuration
+  ansible.builtin.copy:
+    src: 90-qman-journald.conf
+    dest: /etc/systemd/journald.conf.d/90-qman-journald.conf
+    owner: root
+    group: root
+    mode: "0644"
+  become: true
+  check_mode: true
+  when: monitoring_logging_dropin_directory.stat.isdir | default(false)
+
+- name: Display candidate configuration
+  ansible.builtin.debug:
+    msg: "{{ lookup('ansible.builtin.file', role_path + '/files/90-qman-journald.conf') }}"
+  when: not (monitoring_logging_dropin_directory.stat.isdir | default(false))
+
+- name: Report monitoring preview completion
+  ansible.builtin.debug:
+    msg: "Monitoring and logging preview completed without persistent configuration changes."

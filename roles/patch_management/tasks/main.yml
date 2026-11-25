@@ -1,0 +1,31 @@
+---
+- name: Verify approved patch management scope
+  ansible.builtin.assert:
+    that:
+      - inventory_hostname == "qman-02"
+      - qman_environment == "nonproduction"
+      - ansible_check_mode
+    fail_msg: "Patch management is restricted to preview mode."
+
+- name: Verify supported operating system
+  ansible.builtin.assert:
+    that:
+      - ansible_facts['distribution'] == "Ubuntu"
+      - ansible_facts['service_mgr'] == "systemd"
+
+- name: Assess current patch management configuration
+  ansible.builtin.import_tasks: assessment.yml
+
+- name: Preview Qman patch management configuration
+  ansible.builtin.copy:
+    src: 99-qman-patch-management
+    dest: /etc/apt/apt.conf.d/99-qman-patch-management
+    owner: root
+    group: root
+    mode: "0644"
+  become: true
+  check_mode: true
+
+- name: Report patch management preview completion
+  ansible.builtin.debug:
+    msg: "Patch management preview completed. No updates or persistent configuration changes applied."

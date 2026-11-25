@@ -1,0 +1,89 @@
+---
+- name: Check unattended-upgrades package
+  ansible.builtin.command:
+    argv:
+      - dpkg-query
+      - -W
+      - unattended-upgrades
+  register: patch_management_package
+  check_mode: false
+  changed_when: false
+  failed_when: patch_management_package.rc not in [0, 1]
+
+- name: Display unattended-upgrades package status
+  ansible.builtin.debug:
+    msg: >-
+      {{
+        patch_management_package.stdout
+        if patch_management_package.rc == 0
+        else "Package not installed"
+      }}
+
+- name: Read effective APT configuration
+  ansible.builtin.command:
+    argv:
+      - apt-config
+      - dump
+  register: patch_management_apt_config
+  check_mode: false
+  changed_when: false
+  no_log: true
+
+- name: Display effective patch management settings
+  ansible.builtin.debug:
+    msg: >-
+      {{
+        patch_management_apt_config.stdout_lines
+        | select('match',
+          '^(APT::Periodic::|Unattended-Upgrade::(Allowed-Origins|Origins-Pattern|Automatic-Reboot))')
+        | list
+      }}
+
+- name: Read APT timer status
+  ansible.builtin.command:
+    argv:
+      - systemctl
+      - show
+      - "--property=Id,LoadState,ActiveState,UnitFileState"
+      - apt-daily.timer
+      - apt-daily-upgrade.timer
+  register: patch_management_timers
+  check_mode: false
+  changed_when: false
+
+- name: Display APT timer status
+  ansible.builtin.debug:
+    var: patch_management_timers.stdout_lines
+
+- name: Simulate available package upgrades
+  ansible.builtin.command:
+    argv:
+      - apt-get
+      - --simulate
+      - --no-remove
+      - upgrade
+  environment:
+    LC_ALL: C
+  register: patch_management_available
+  check_mode: false
+  changed_when: false
+
+- name: Display available package upgrades
+  ansible.builtin.debug:
+    msg: >-
+      {{
+        patch_management_available.stdout_lines
+        | select('match', '^(Inst |[0-9]+ upgraded)')
+        | list
+      }}
+
+- name: Check reboot requirement
+  ansible.builtin.stat:
+    path: /run/reboot-required
+  register: patch_management_reboot
+
+- name: Report reboot requirement
+  ansible.builtin.debug:
+    msg: >-
+      Reboot required:
+      {{ patch_management_reboot.stat.exists }}

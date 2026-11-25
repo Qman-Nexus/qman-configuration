@@ -1,0 +1,77 @@
+---
+- name: Collect system health information
+  ansible.builtin.command:
+    argv: "{{ item.command }}"
+  loop:
+    - name: System uptime
+      command: [uptime]
+    - name: Memory utilization
+      command: [free, -m]
+    - name: Disk utilization
+      command: [df, -Ph, /]
+    - name: Failed services
+      command: [systemctl, --failed, --type=service, --no-pager]
+    - name: Journal disk usage
+      command: [journalctl, --disk-usage, --no-pager]
+    - name: Critical services
+      command:
+        - systemctl
+        - show
+        - "--property=Id,LoadState,ActiveState,SubState"
+        - systemd-journald.service
+        - tailscaled.service
+        - apt-daily-upgrade.timer
+  loop_control:
+    label: "{{ item.name }}"
+  register: monitoring_logging_health
+  become: true
+  check_mode: false
+  changed_when: false
+
+- name: Display system health information
+  ansible.builtin.debug:
+    msg:
+      name: "{{ item.item.name }}"
+      output: "{{ item.stdout_lines }}"
+  loop: "{{ monitoring_logging_health.results }}"
+  loop_control:
+    label: "{{ item.item.name }}"
+
+- name: Check persistent journal storage
+  ansible.builtin.stat:
+    path: /var/log/journal
+  register: monitoring_logging_journal
+
+- name: Report persistent journal storage
+  ansible.builtin.debug:
+    msg: "Persistent journal directory: {{ monitoring_logging_journal.stat.exists }}"
+
+- name: Read journald configuration
+  ansible.builtin.command:
+    argv:
+      - systemd-analyze
+      - cat-config
+      - systemd/journald.conf
+  register: monitoring_logging_journal_config
+  check_mode: false
+  changed_when: false
+  no_log: true
+
+- name: Display configured journal settings
+  ansible.builtin.debug:
+    msg: >-
+      {{
+        monitoring_logging_journal_config.stdout_lines
+        | select('match',
+          '^\s*(Storage|Compress|SystemMaxUse|SystemKeepFree|RuntimeMaxUse|MaxRetentionSec)\s*=')
+        | list
+      }}
+
+- name: Check reboot requirement
+  ansible.builtin.stat:
+    path: /run/reboot-required
+  register: monitoring_logging_reboot
+
+- name: Report reboot requirement
+  ansible.builtin.debug:
+    msg: "Reboot required: {{ monitoring_logging_reboot.stat.exists }}"
