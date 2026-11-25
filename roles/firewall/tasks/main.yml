@@ -1,0 +1,111 @@
+---
+- name: Verify approved firewall preview scope
+  ansible.builtin.assert:
+    that:
+      - inventory_hostname == "qman-02"
+      - qman_environment == "nonproduction"
+      - ansible_check_mode
+    fail_msg: "Firewall configuration is restricted to preview mode."
+
+- name: Read current UFW status
+  ansible.builtin.command:
+    argv:
+      - /usr/sbin/ufw
+      - status
+      - verbose
+  become: true
+  check_mode: false
+  changed_when: false
+  register: firewall_current_status
+
+- name: Display current UFW status
+  ansible.builtin.debug:
+    var: firewall_current_status.stdout_lines
+
+- name: Read existing configured firewall rules
+  ansible.builtin.command:
+    argv:
+      - /usr/sbin/ufw
+      - show
+      - added
+  become: true
+  check_mode: false
+  changed_when: false
+  register: firewall_existing_rules
+
+- name: Display existing firewall rules
+  ansible.builtin.debug:
+    var: firewall_existing_rules.stdout_lines
+
+- name: Verify IPv6 firewall support
+  ansible.builtin.command:
+    argv:
+      - grep
+      - "^IPV6=yes$"
+      - /etc/default/ufw
+  check_mode: false
+  changed_when: false
+
+- name: Verify Tailscale network interface
+  ansible.builtin.command:
+    argv:
+      - ip
+      - link
+      - show
+      - "{{ firewall_management_interface }}"
+  check_mode: false
+  changed_when: false
+
+- name: Simulate private management access
+  ansible.builtin.command:
+    argv:
+      - /usr/sbin/ufw
+      - --dry-run
+      - allow
+      - in
+      - "on"
+      - "{{ firewall_management_interface }}"
+      - to
+      - any
+      - port
+      - "{{ firewall_management_port | string }}"
+      - proto
+      - tcp
+  become: true
+  check_mode: false
+  changed_when: false
+
+- name: Simulate public application rules
+  ansible.builtin.command:
+    argv:
+      - /usr/sbin/ufw
+      - --dry-run
+      - allow
+      - "{{ item }}/tcp"
+  loop: "{{ firewall_public_tcp_ports }}"
+  become: true
+  check_mode: false
+  changed_when: false
+
+- name: Simulate default firewall policies
+  ansible.builtin.command:
+    argv:
+      - /usr/sbin/ufw
+      - --dry-run
+      - default
+      - "{{ item.policy }}"
+      - "{{ item.direction }}"
+  loop:
+    - direction: incoming
+      policy: "{{ firewall_default_incoming }}"
+    - direction: outgoing
+      policy: "{{ firewall_default_outgoing }}"
+    - direction: routed
+      policy: "{{ firewall_default_routed }}"
+  become: true
+  check_mode: false
+  changed_when: false
+
+- name: Display firewall preview result
+  ansible.builtin.debug:
+    msg: "Firewall simulations completed. No firewall configuration applied."

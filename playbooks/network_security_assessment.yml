@@ -1,0 +1,123 @@
+---
+- name: Assess Qman network security
+  hosts: nonproduction
+  gather_facts: false
+  become: false
+  check_mode: true
+  any_errors_fatal: true
+  serial: 1
+
+  pre_tasks:
+    - name: Verify approved execution scope
+      ansible.builtin.assert:
+        that:
+          - inventory_hostname == "qman-02"
+          - qman_environment == "nonproduction"
+          - ansible_check_mode
+        fail_msg: "Execution outside the approved assessment scope is prohibited."
+
+  tasks:
+    - name: Read listening network sockets
+      ansible.builtin.command:
+        argv:
+          - ss
+          - -lntup
+      become: true
+      check_mode: false
+      changed_when: false
+      register: qman_network_sockets
+
+    - name: Display listening network sockets
+      ansible.builtin.debug:
+        var: qman_network_sockets.stdout_lines
+
+    - name: Verify OpenSSH executable exists
+      ansible.builtin.stat:
+        path: /usr/sbin/sshd
+      register: qman_sshd_binary
+
+    - name: Read effective OpenSSH configuration
+      ansible.builtin.command:
+        argv:
+          - /usr/sbin/sshd
+          - -T
+      become: true
+      check_mode: false
+      changed_when: false
+      register: qman_sshd_configuration
+      when: qman_sshd_binary.stat.exists
+
+    - name: Display relevant OpenSSH settings
+      ansible.builtin.debug:
+        msg: >-
+          {{
+            qman_sshd_configuration.stdout_lines
+            | select('match',
+              '^(port|listenaddress|permitrootlogin|passwordauthentication|kbdinteractiveauthentication|pubkeyauthentication|permitemptypasswords|x11forwarding|allowtcpforwarding|maxauthtries|loglevel|allowusers|allowgroups) ')
+            | list
+          }}
+      when: qman_sshd_binary.stat.exists
+
+    - name: Read SSH and Tailscale service states
+      ansible.builtin.command:
+        argv:
+          - systemctl
+          - show
+          - "--property=Id,LoadState,ActiveState,UnitFileState"
+          - ssh.service
+          - ssh.socket
+          - tailscaled.service
+      check_mode: false
+      changed_when: false
+      register: qman_security_services
+
+    - name: Display service states
+      ansible.builtin.debug:
+        var: qman_security_services.stdout_lines
+
+    - name: Verify UFW executable exists
+      ansible.builtin.stat:
+        path: /usr/sbin/ufw
+      register: qman_ufw_binary
+
+    - name: Read current UFW status
+      ansible.builtin.command:
+        argv:
+          - /usr/sbin/ufw
+          - status
+          - verbose
+      become: true
+      check_mode: false
+      changed_when: false
+      register: qman_ufw_status
+      when: qman_ufw_binary.stat.exists
+
+    - name: Display current firewall configuration
+      ansible.builtin.debug:
+        var: qman_ufw_status.stdout_lines
+      when: qman_ufw_binary.stat.exists
+
+    - name: Report missing UFW installation
+      ansible.builtin.debug:
+        msg: "UFW is not installed."
+      when: not qman_ufw_binary.stat.exists
+
+    - name: Read Tailscale IPv4 address
+      ansible.builtin.command:
+        argv:
+          - tailscale
+          - ip
+          - "-4"
+      check_mode: false
+      changed_when: false
+      register: qman_tailscale_address
+
+    - name: Verify Tailscale address is available
+      ansible.builtin.assert:
+        that:
+          - qman_tailscale_address.stdout | length > 0
+        success_msg: "Tailscale IPv4 address available."
+
+    - name: Report assessment completion
+      ansible.builtin.debug:
+        msg: "Network security assessment completed without persistent configuration changes."

@@ -1,0 +1,11 @@
+---
+- name: Preview Qman firewall baseline
+  hosts: nonproduction
+  gather_facts: false
+  become: false
+  check_mode: true
+  any_errors_fatal: true
+  serial: 1
+
+  roles:
+    - firewall
