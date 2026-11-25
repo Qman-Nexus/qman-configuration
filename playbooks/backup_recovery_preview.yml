@@ -1,0 +1,11 @@
+---
+- name: Preview Qman backup and recovery baseline
+  hosts: nonproduction
+  gather_facts: false
+  become: false
+  check_mode: true
+  any_errors_fatal: true
+  serial: 1
+
+  roles:
+    - backup_recovery
