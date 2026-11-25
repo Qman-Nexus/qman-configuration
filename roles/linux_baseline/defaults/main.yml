@@ -1,0 +1,13 @@
+---
+linux_baseline_version: "1.0.0"
+
+linux_baseline_packages:
+  - ca-certificates
+  - curl
+  - jq
+  - rsync
+  - unzip
+
+linux_baseline_platform_name: Qman Enterprise Platform
+
+linux_baseline_metadata_path: /etc/qman-platform.conf

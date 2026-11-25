@@ -1,0 +1,28 @@
+---
+- name: Simulate baseline package installation
+  ansible.builtin.command:
+    argv: "{{ ['apt-get', '--simulate', '--no-remove',
+                '--no-install-recommends', 'install']
+                + linux_baseline_packages }}"
+  become: false
+  check_mode: false
+  changed_when: false
+  register: linux_baseline_package_preview
+  when: ansible_check_mode
+
+- name: Display package installation preview
+  ansible.builtin.debug:
+    var: linux_baseline_package_preview.stdout_lines
+  when: ansible_check_mode
+
+- name: Ensure baseline packages are installed
+  ansible.builtin.apt:
+    name: "{{ linux_baseline_packages }}"
+    state: present
+    update_cache: true
+    cache_valid_time: 3600
+    install_recommends: false
+    fail_on_autoremove: true
+    force_apt_get: true
+  become: true
+  when: not ansible_check_mode

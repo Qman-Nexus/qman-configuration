@@ -1,0 +1,28 @@
+---
+- name: Preview Qman Linux security baseline
+  hosts: nonproduction
+  gather_facts: false
+  become: false
+  check_mode: true
+  any_errors_fatal: true
+  serial: 1
+
+  pre_tasks:
+    - name: Verify execution safety boundary
+      ansible.builtin.assert:
+        that:
+          - inventory_hostname == "qman-02"
+          - qman_environment == "nonproduction"
+          - ansible_check_mode
+        fail_msg: "Execution outside the approved preview scope is prohibited."
+
+    - name: Gather system facts
+      ansible.builtin.setup:
+
+  roles:
+    - linux_baseline
+
+  post_tasks:
+    - name: Display verification result
+      ansible.builtin.debug:
+        msg: "Linux baseline preview completed. No persistent configuration changes applied."

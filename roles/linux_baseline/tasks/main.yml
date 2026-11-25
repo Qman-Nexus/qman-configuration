@@ -1,0 +1,18 @@
+---
+- name: Verify supported operating system
+  ansible.builtin.assert:
+    that:
+      - ansible_facts['distribution'] == "Ubuntu"
+      - ansible_facts['service_mgr'] == "systemd"
+      - qman_environment is defined
+      - qman_environment in ["production", "nonproduction"]
+    fail_msg: "Unsupported operating system or environment."
+
+- name: Configure baseline packages
+  ansible.builtin.import_tasks: packages.yml
+
+- name: Configure platform identity
+  ansible.builtin.import_tasks: identity.yml
+
+- name: Verify time synchronization
+  ansible.builtin.import_tasks: time.yml

@@ -1,0 +1,9 @@
+---
+- name: Deploy platform identity configuration
+  ansible.builtin.template:
+    src: platform.conf.j2
+    dest: "{{ linux_baseline_metadata_path }}"
+    owner: root
+    group: root
+    mode: "0644"
+  become: true

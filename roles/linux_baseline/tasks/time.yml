@@ -1,0 +1,24 @@
+---
+- name: Read system time synchronization status
+  ansible.builtin.command:
+    argv:
+      - timedatectl
+      - show
+      - --property=NTPSynchronized
+      - --value
+  register: linux_baseline_ntp_status
+  changed_when: false
+  check_mode: false
+
+- name: Report time synchronization status
+  ansible.builtin.debug:
+    msg: >-
+      NTP synchronization:
+      {{ linux_baseline_ntp_status.stdout | trim }}
+
+- name: Verify system time is synchronized
+  ansible.builtin.assert:
+    that:
+      - linux_baseline_ntp_status.stdout | trim == "yes"
+    fail_msg: "System clock is not synchronized."
+    success_msg: "System clock synchronization verified."
