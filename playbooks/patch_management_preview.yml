@@ -1,0 +1,22 @@
+---
+- name: Preview Qman patch management baseline
+  hosts: nonproduction
+  gather_facts: false
+  become: false
+  check_mode: true
+  any_errors_fatal: true
+  serial: 1
+
+  pre_tasks:
+    - name: Verify approved execution boundary
+      ansible.builtin.assert:
+        that:
+          - inventory_hostname == "qman-02"
+          - qman_environment == "nonproduction"
+          - ansible_check_mode
+
+    - name: Gather operating system facts
+      ansible.builtin.setup:
+
+  roles:
+    - patch_management
