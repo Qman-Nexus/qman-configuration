@@ -1,0 +1,40 @@
+# Python
+.venv/
+__pycache__/
+*.pyc
+
+# Ansible runtime files
+*.retry
+*.log
+.ansible/
+
+# Private inventories
+inventories/production/
+inventories/nonproduction/
+inventories/private/
+
+# Credentials and secrets
+credentials/
+secrets/
+private/
+.env
+.env.*
+*.pem
+*.key
+*.password
+.vault_pass*
+vault-password*
+
+# Local configuration
+ansible.local.cfg
+
+# Testing
+.molecule/
+.cache/
+
+# Operating system
+.DS_Store
+
+# IDE configuration
+.idea/
+.vscode/

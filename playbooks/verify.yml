@@ -1,0 +1,25 @@
+---
+- name: Verify Qman Ansible foundation
+  hosts: lab
+  gather_facts: false
+  become: false
+
+  vars:
+    qman_environment: lab
+
+  tasks:
+    - name: Verify local execution boundary
+      ansible.builtin.assert:
+        that:
+          - inventory_hostname == "localhost"
+          - ansible_connection == "local"
+          - qman_environment == "lab"
+        fail_msg: "Execution outside the local lab is prohibited."
+        success_msg: "Local lab execution boundary verified."
+
+    - name: Verify Ansible connectivity
+      ansible.builtin.ping:
+
+    - name: Display verification status
+      ansible.builtin.debug:
+        msg: "Qman Ansible repository foundation verified."
