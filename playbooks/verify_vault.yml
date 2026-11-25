@@ -1,0 +1,26 @@
+---
+- name: Verify Qman Vault integration
+  hosts: lab
+  gather_facts: false
+  become: false
+
+  tasks:
+    - name: Verify local execution boundary
+      ansible.builtin.assert:
+        that:
+          - inventory_hostname == "localhost"
+          - ansible_connection == "local"
+        fail_msg: "Vault verification must run locally."
+
+    - name: Verify encrypted variables are available
+      ansible.builtin.assert:
+        that:
+          - vault_demo_token is defined
+          - vault_demo_password is defined
+          - vault_demo_token | length > 0
+          - vault_demo_password | length > 0
+      no_log: true
+
+    - name: Display verification status
+      ansible.builtin.debug:
+        msg: "Vault integration verified successfully."
