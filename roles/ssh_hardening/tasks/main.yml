@@ -1,11 +1,27 @@
 ---
-- name: Verify SSH hardening preview scope
+- name: Verify SSH hardening scope
   ansible.builtin.assert:
     that:
       - inventory_hostname == "qman-02"
       - qman_environment == "nonproduction"
-      - ansible_check_mode
-    fail_msg: "SSH hardening is currently restricted to preview mode."
+
+- name: Verify live deployment authorization
+  ansible.builtin.assert:
+    that:
+      - ansible_facts['hostname'] == "qman-nonprod-01"
+      - ansible_facts['distribution'] == "Ubuntu"
+      - (qman_ssh_apply | default(false)) is sameas true
+    fail_msg: "Live SSH deployment is not authorized."
+  when: not ansible_check_mode
+
+- name: Verify active rollback timer
+  ansible.builtin.command:
+    argv:
+      - systemctl
+      - is-active
+      - qman-bld006-ssh-rollback.timer
+  changed_when: false
+  when: not ansible_check_mode
 
 - name: Validate existing OpenSSH configuration
   ansible.builtin.command:
@@ -16,7 +32,28 @@
   check_mode: false
   changed_when: false
 
-- name: Preview OpenSSH security configuration
+- name: Read OpenSSH service state
+  ansible.builtin.command:
+    argv:
+      - systemctl
+      - is-active
+      - ssh.service
+  register: ssh_hardening_service
+  check_mode: false
+  changed_when: false
+  failed_when: ssh_hardening_service.rc not in [0, 3]
+
+- name: Verify socket activation when daemon is inactive
+  ansible.builtin.command:
+    argv:
+      - systemctl
+      - is-active
+      - ssh.socket
+  changed_when: false
+  check_mode: false
+  when: ssh_hardening_service.rc != 0
+
+- name: Deploy OpenSSH security configuration
   ansible.builtin.copy:
     src: 00-qman-hardening.conf
     dest: /etc/ssh/sshd_config.d/00-qman-hardening.conf
@@ -24,8 +61,53 @@
     group: root
     mode: "0600"
   become: true
-  check_mode: true
+  register: ssh_hardening_config
 
-- name: Report SSH hardening preview result
+- name: Validate complete OpenSSH configuration
+  ansible.builtin.command:
+    argv:
+      - /usr/sbin/sshd
+      - "-t"
+  become: true
+  changed_when: false
+  when: not ansible_check_mode
+
+- name: Read effective OpenSSH settings
+  ansible.builtin.command:
+    argv:
+      - /usr/sbin/sshd
+      - "-T"
+  become: true
+  register: ssh_hardening_effective
+  changed_when: false
+  when: not ansible_check_mode
+
+- name: Verify effective OpenSSH settings
+  ansible.builtin.assert:
+    that:
+      - item in ssh_hardening_effective.stdout_lines
+    fail_msg: "Required SSH setting is not effective: {{ item }}"
+  loop:
+    - "permitrootlogin no"
+    - "passwordauthentication no"
+    - "kbdinteractiveauthentication no"
+    - "pubkeyauthentication yes"
+    - "permitemptypasswords no"
+    - "x11forwarding no"
+    - "maxauthtries 3"
+    - "loglevel VERBOSE"
+  when: not ansible_check_mode
+
+- name: Reload OpenSSH when configuration changed
+  ansible.builtin.systemd_service:
+    name: ssh.service
+    state: reloaded
+  become: true
+  when:
+    - not ansible_check_mode
+    - ssh_hardening_config.changed
+    - ssh_hardening_service.rc == 0
+
+- name: Report SSH hardening result
   ansible.builtin.debug:
-    msg: "SSH hardening preview completed. No SSH configuration changes applied."
+    msg: "SSH hardening tasks completed."
