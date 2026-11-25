@@ -1,0 +1,13 @@
+---
+- name: Deploy Qman patch management baseline
+  hosts: nonproduction
+  gather_facts: true
+  become: false
+  any_errors_fatal: true
+  serial: 1
+
+  tasks:
+    - name: Apply approved patch management configuration
+      ansible.builtin.import_role:
+        name: patch_management
+        tasks_from: apply.yml

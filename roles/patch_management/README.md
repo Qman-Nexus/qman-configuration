@@ -64,3 +64,12 @@ Package installation, timer activation, candidate
 configuration validation, live patch verification,
 monitoring integration, and idempotency testing
 remain pending until controlled deployment.
+
+## OPS-002A — Controlled Deployment
+
+- Controlled apply playbook implemented.
+- Non-production deployment validated.
+- Automatic APT maintenance timers enabled.
+- Idempotency verified: 16 successful tasks, zero changes.
+- Automatic operating system reboots remain disabled.
+- Regular and third-party package upgrades remain pending.
