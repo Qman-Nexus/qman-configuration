@@ -1,0 +1,31 @@
+---
+- name: Verify SSH hardening preview scope
+  ansible.builtin.assert:
+    that:
+      - inventory_hostname == "qman-02"
+      - qman_environment == "nonproduction"
+      - ansible_check_mode
+    fail_msg: "SSH hardening is currently restricted to preview mode."
+
+- name: Validate existing OpenSSH configuration
+  ansible.builtin.command:
+    argv:
+      - /usr/sbin/sshd
+      - "-t"
+  become: true
+  check_mode: false
+  changed_when: false
+
+- name: Preview OpenSSH security configuration
+  ansible.builtin.copy:
+    src: 00-qman-hardening.conf
+    dest: /etc/ssh/sshd_config.d/00-qman-hardening.conf
+    owner: root
+    group: root
+    mode: "0600"
+  become: true
+  check_mode: true
+
+- name: Report SSH hardening preview result
+  ansible.builtin.debug:
+    msg: "SSH hardening preview completed. No SSH configuration changes applied."

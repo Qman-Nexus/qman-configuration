@@ -1,0 +1,11 @@
+---
+firewall_public_tcp_ports:
+  - 80
+  - 443
+
+firewall_management_interface: tailscale0
+firewall_management_port: 22
+
+firewall_default_incoming: deny
+firewall_default_outgoing: allow
+firewall_default_routed: deny
