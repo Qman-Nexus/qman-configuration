@@ -1,0 +1,10 @@
+---
+all:
+  children:
+    nonproduction:
+      vars:
+        qman_environment: ci
+        ansible_connection: ssh
+      hosts:
+        syntax-only:
+          ansible_host: syntax-only.invalid
