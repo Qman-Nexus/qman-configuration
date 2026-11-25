@@ -1,0 +1,52 @@
+---
+- name: Verify approved deployment scope
+  ansible.builtin.assert:
+    that:
+      - inventory_hostname == "qman-02"
+      - qman_environment == "nonproduction"
+      - ansible_facts['hostname'] == "qman-nonprod-01"
+      - ansible_facts['distribution'] == "Ubuntu"
+      - ansible_facts['distribution_version'].split('.')[:2] == ['26', '04']
+      - ansible_facts['service_mgr'] == "systemd"
+      - not ansible_check_mode
+      - (qman_patch_apply | default(false)) is sameas true
+    fail_msg: "Patch management deployment is not authorized."
+
+- name: Ensure unattended-upgrades is installed
+  ansible.builtin.apt:
+    name: unattended-upgrades
+    state: present
+  become: true
+
+- name: Deploy Qman patch management configuration
+  ansible.builtin.copy:
+    src: 99-qman-patch-management
+    dest: /etc/apt/apt.conf.d/99-qman-patch-management
+    owner: root
+    group: root
+    mode: "0644"
+    backup: true
+    validate: /usr/bin/apt-config -c %s dump
+  become: true
+
+- name: Enable automatic APT maintenance timers
+  ansible.builtin.systemd_service:
+    name: "{{ item }}"
+    enabled: true
+    state: started
+  loop:
+    - apt-daily.timer
+    - apt-daily-upgrade.timer
+  become: true
+
+- name: Assess effective patch management configuration
+  ansible.builtin.import_tasks: assessment.yml
+
+- name: Verify effective patch policy
+  ansible.builtin.assert:
+    that:
+      - '"APT::Periodic::Update-Package-Lists \"1\";" in patch_management_apt_config.stdout_lines'
+      - '"APT::Periodic::Unattended-Upgrade \"1\";" in patch_management_apt_config.stdout_lines'
+      - '"Unattended-Upgrade::Automatic-Reboot \"false\";" in patch_management_apt_config.stdout_lines'
+      - patch_management_timers.stdout_lines | select('equalto', 'ActiveState=active') | list | length == 2
+      - patch_management_timers.stdout_lines | select('equalto', 'UnitFileState=enabled') | list | length == 2
