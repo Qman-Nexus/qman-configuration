@@ -109,3 +109,39 @@
 - name: Display firewall preview result
   ansible.builtin.debug:
     msg: "Firewall simulations completed. No firewall configuration applied."
+
+
+- name: Normalize current firewall rules
+  ansible.builtin.set_fact:
+    firewall_actual_rules: >-
+      {{
+        firewall_existing_rules.stdout_lines
+        | select('match', '^ufw ')
+        | list
+      }}
+
+- name: Detect firewall configuration drift
+  ansible.builtin.set_fact:
+    firewall_unexpected_rules: >-
+      {{
+        firewall_actual_rules
+        | difference(firewall_expected_rules)
+        | sort
+      }}
+    firewall_missing_rules: >-
+      {{
+        firewall_expected_rules
+        | difference(firewall_actual_rules)
+        | sort
+      }}
+
+- name: Verify firewall configuration compliance
+  ansible.builtin.assert:
+    that:
+      - firewall_unexpected_rules | length == 0
+      - firewall_missing_rules | length == 0
+    fail_msg: >-
+      Firewall configuration drift detected.
+      Unexpected rules: {{ firewall_unexpected_rules }}.
+      Missing rules: {{ firewall_missing_rules }}.
+    success_msg: "Firewall rules match the desired state."

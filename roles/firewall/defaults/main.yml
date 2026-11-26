@@ -9,3 +9,17 @@ firewall_management_port: 22
 firewall_default_incoming: deny
 firewall_default_outgoing: allow
 firewall_default_routed: deny
+firewall_expected_rules: >-
+  {{
+    [
+      'ufw allow in on ' ~ firewall_management_interface
+      ~ ' to any port ' ~ (firewall_management_port | string)
+      ~ ' proto tcp'
+    ]
+    +
+    (
+      firewall_public_tcp_ports
+      | map('regex_replace', '^(.+)$', 'ufw allow \1/tcp')
+      | list
+    )
+  }}
